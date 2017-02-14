@@ -1,7 +1,6 @@
 #!/usr/local/bin/python3
 
 import os
-import re
 from peewee import *
 
 db = SqliteDatabase('acdbackup.db', pragmas = ( ("synchronous","OFF"), ("journal_mode","MEMORY") ) )
@@ -31,8 +30,7 @@ class Node(Model):
 		return query
 
 	def find_all_unencrypted_names():
-		# return Node.select().where(Node.plain_name == None).limit(10)
-		return Node.select().group_by(Node.name).where(Node.plain_name == None)#.limit(1000)
+		return Node.select().group_by(Node.name).where(Node.plain_name == None)
 
 	def find_or_create_node(parent_node, node_name, node_type):
 		node = Node.find_node(parent_node, node_name, node_type)
