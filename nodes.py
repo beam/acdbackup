@@ -15,12 +15,20 @@ class Node(Model):
 	mtime = TimestampField(null = True, default = None)
 	md5 = FixedCharField(max_length = 32, null = True, default = None, index = True)
 	size = BigIntegerField(null = True, default = None)
+	last_seen_at = TimestampField(null = True, default = None)
 
 	class Meta:
 		database = db
 
+	def update_seen_at_for_nodes(seen_at, nodes_ids):
+		query = Node.update(last_seen_at=seen_at).where(Node.id << nodes_ids)
+		query.execute()
+		return query
+
 	def save_decrypted_name(encrypted_name, translated_name):
-		query = Node.update(plain_name=translated_name).where(Node.name == encrypted_name).execute()
+		query = Node.update(plain_name=translated_name).where(Node.name == encrypted_name)
+		query.execute()
+		return query
 
 	def find_all_unencrypted_names():
 		# return Node.select().where(Node.plain_name == None).limit(10)
