@@ -64,7 +64,7 @@ def walk_directory_and_create_node(parent_id, current_directory, progress_bar, n
 		progress_bar.update(1)
 		node = Node.find_or_create_node(parent_id, dir_subdir, "D")
 		node_ids.append(node.id)
-		# walk_directory_and_create_node(node, os.path.join(current_directory, dir_subdir), progress_bar, node_ids)
+		walk_directory_and_create_node(node, os.path.join(current_directory, dir_subdir), progress_bar, node_ids)
 
 def descrypt_encfs_names(node_names, delete_pass_file = True):
 	my_env = os.environ
