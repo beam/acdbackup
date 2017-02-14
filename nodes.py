@@ -19,10 +19,8 @@ class Node(Model):
 	class Meta:
 		database = db
 
-	def update_seen_at_for_nodes(seen_at, nodes_ids):
-		query = Node.update(last_seen_at=seen_at).where(Node.id << nodes_ids)
-		query.execute()
-		return query
+	def update_last_seen_at(node, last_seen_at):
+		return Node.update(last_seen_at=last_seen_at).where(Node.id == node.id).execute()
 
 	def save_decrypted_name(encrypted_name, translated_name):
 		query = Node.update(plain_name=translated_name).where(Node.name == encrypted_name)

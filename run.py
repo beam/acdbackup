@@ -13,6 +13,7 @@ from utils import *
 log("Starting")
 
 LAST_SEEN_AT = int(time.time())
+log("Run ID: " + str(LAST_SEEN_AT))
 
 # Mounting encrypted folders
 for backup_item in config.BACKUP:
@@ -27,13 +28,9 @@ log("Walking for collect nodes")
 total_count = Node.select().count()
 node_ids = []
 progress_bar = tqdm(total=total_count, desc='Collecting nodes', unit='node', dynamic_ncols=True)
-walk_directory_and_create_node(None, config.BACKUP_DIR, progress_bar, node_ids)
+walk_directory_and_create_node(None, config.BACKUP_DIR, progress_bar, LAST_SEEN_AT)
 progress_bar.clear()
 progress_bar.close()
-
-# Update last seen at
-log("Updating nodes last seen time")
-Node.update_seen_at_for_nodes(LAST_SEEN_AT,node_ids)
 
 # Descrypt name
 log("Decrypting encrypted node names")
