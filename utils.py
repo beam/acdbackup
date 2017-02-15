@@ -19,8 +19,14 @@ import colorama
 # 		print(self.current)
 
 
-def log(message):
-	tqdm.write(colorama.Fore.GREEN + time.strftime('%Y-%m-%d %H:%M:%S') + " " + colorama.Fore.WHITE + message + colorama.Style.RESET_ALL)
+def log(message,msg_type = 'info'):
+	if msg_type == 'info':
+		msg_color = colorama.Fore.YELLOW
+	elif msg_type == 'error':
+		msg_color = colorama.Fore.RED
+	elif msg_type == 'debug':
+		msg_color = colorama.Fore.WHITE
+	tqdm.write(colorama.Fore.GREEN + time.strftime('%Y-%m-%d %H:%M:%S') + " " + msg_color + message + colorama.Style.RESET_ALL)
 
 def encfs_password_file(create = True):
 	file_path = os.path.join(config.TMP_DIR,"encfs-pass.sh")
@@ -57,6 +63,7 @@ def umount_encrypted_destination(backup_item):
 def walk_directory_and_create_node(parent_id, current_directory, progress_bar, last_seen_at = None):
 	(root, directories, files) = next(os.walk(current_directory))
 	for dir_file in files:
+		if os.path.islink(os.path.join(current_directory,dir_file)): continue
 		progress_bar.update(1)
 		node = Node.find_or_create_node(parent_id, dir_file, "F")
 		if last_seen_at: Node.update_last_seen_at(node,last_seen_at)
@@ -96,7 +103,7 @@ def full_node_path(node):
 
 def check_if_files_in_changed(node):
 	file_path = full_node_path(node)
-	file_stat = os.stat(file_path)
+	file_stat = os.lstat(file_path)
 	if not node.mtime or not node.md5 or int(file_stat.st_mtime) != node.mtime.timestamp() or file_stat.st_size != node.size:
 		node.mtime = int(file_stat.st_mtime)
 		node.size = file_stat.st_size

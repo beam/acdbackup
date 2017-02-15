@@ -57,12 +57,12 @@ all_files = Node.select().where(Node.node_type == "F",Node.last_seen_at == LAST_
 progress_bar = tqdm(total=all_files.count(), desc='Searching for changes', unit='node', dynamic_ncols=True)
 for node in all_files:
 	if not os.path.exists(full_node_path(node)):
-		log("File: " + node.plain_name + " missing!")
+		log("File: " + node.get_node_path('plain') + " missing!",'error')
 		continue
 	if check_if_files_in_changed(node):
 		node.md5 = md5_hash_file(full_node_path(node), True, node.size, 'Hashing: ' + node.plain_name)
 		node.save()
-		log("File: " + node.plain_name + " hashed")
+		log("File: " + node.get_node_path('plain') + " hashed",'debug')
 	progress_bar.update()
 progress_bar.close()
 
