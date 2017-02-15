@@ -25,8 +25,7 @@ for backup_item in config.BACKUP:
 
 # Walk local data
 log("Walking for collect nodes")
-total_count = Node.select().count()
-node_ids = []
+total_count = Node.select().where(Node.last_seen_at == Node.get_last_seen_at()).count()
 progress_bar = tqdm(total=total_count, desc='Collecting nodes', unit='node', dynamic_ncols=True)
 walk_directory_and_create_node(None, config.BACKUP_DIR, progress_bar, LAST_SEEN_AT)
 progress_bar.clear()

@@ -14,10 +14,13 @@ class Node(Model):
 	mtime = TimestampField(null = True, default = None)
 	md5 = FixedCharField(max_length = 32, null = True, default = None, index = True)
 	size = BigIntegerField(null = True, default = None)
-	last_seen_at = TimestampField(null = True, default = None)
+	last_seen_at = TimestampField(null = True, default = None, index = True)
 
 	class Meta:
 		database = db
+
+	def get_last_seen_at():
+		return int(Node.select(fn.MAX(Node.last_seen_at)).scalar())
 
 	def update_last_seen_at(node, last_seen_at):
 		return Node.update(last_seen_at=last_seen_at).where(Node.id == node.id).execute()
