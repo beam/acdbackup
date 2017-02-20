@@ -4,7 +4,7 @@ import os, time
 import config
 
 from md5_hash import md5_hash_file
-from nodes import Node
+from database import Node,RemoteNode
 from tqdm import tqdm
 
 from utils import *
@@ -73,6 +73,8 @@ for backup_item in config.BACKUP:
 	log("Unmounting " + backup_item['dest'])
 	umount_encrypted_destination(backup_item)
 	# cleanup
+log("Synchronize remote nodes")
+RemoteNode.sync()
 
 log("End")
 

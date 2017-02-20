@@ -1,11 +1,9 @@
-#!/usr/local/bin/python3
-
 import os
 from peewee import *
 
-db = SqliteDatabase('acdbackup.db', pragmas = ( ("synchronous","OFF"), ("journal_mode","MEMORY") ) )
+from database import BaseNode
 
-class Node(Model):
+class Node(BaseNode):
 
 	parent = ForeignKeyField("self", null = True, default = None)
 	node_type = FixedCharField(max_length = 1)
@@ -16,22 +14,11 @@ class Node(Model):
 	size = BigIntegerField(null = True, default = None)
 	last_seen_at = TimestampField(null = True, default = None, index = True)
 
-	class Meta:
-		database = db
-
 	def get_last_seen_at():
 		return int(Node.select(fn.MAX(Node.last_seen_at)).scalar())
 
 	def update_last_seen_at(node, last_seen_at):
 		return Node.update(last_seen_at=last_seen_at).where(Node.id == node.id).execute()
-
-	def save_decrypted_name(encrypted_name, translated_name):
-		query = Node.update(plain_name=translated_name).where(Node.name == encrypted_name)
-		query.execute()
-		return query
-
-	def find_all_unencrypted_names():
-		return Node.select().group_by(Node.name).where(Node.plain_name == None)
 
 	def find_or_create_node(parent_node, node_name, node_type):
 		node = Node.find_node(parent_node, node_name, node_type)
@@ -97,7 +84,3 @@ class Node(Model):
 	# 		if parent_id == None: return None
 
 	# 	return parent_id
-
-db.connect()
-db.create_tables([Node], safe = True)
-

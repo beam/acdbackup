@@ -3,14 +3,14 @@ ENCFS6_CONFIG="/root/.encfs6.xml"
 
 TMP_DIR = "/tmp"
 
-CACHE_PATH = "/root/.cache/acd_cli"
-SETTINGS_PATH = "/root/.config/acd_cli"
+ACD_CACHE_PATH = "/root/.cache/acd_cli"
+ACD_SETTINGS_PATH = "/root/.config/acd_cli"
 
 BACKUP_DIR = "/backup"
 
 BACKUP = [
 	{
-		'source'	:	'/nas/HDD1', # real path 
+		'source'	:	'/nas/HDD1', # real path
 		'dest'		:	BACKUP_DIR + '/HDD1' # encrypted fs
 	},
 	{
