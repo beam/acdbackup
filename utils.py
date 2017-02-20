@@ -33,7 +33,7 @@ def encfs_password_file(create = True):
 	if create:
 		if os.path.exists(file_path): return file_path
 		open(file_path, 'a').close()
-		os.chmod(file_path, stat.S_IEXEC)	
+		os.chmod(file_path, stat.S_IEXEC)
 		file = open(file_path, 'w')
 		file.write("echo '" + config.ENCFS_PASS + "'")
 		file.close
@@ -86,10 +86,10 @@ def descrypt_encfs_names(node_names, delete_pass_file = True):
 	progress_bar = tqdm(total=len(list_for_process), desc='Parsing decrypted data', unit='node', dynamic_ncols=True)
 	for translated_name in list_for_process:
 		progress_bar.update()
-		if last_error: 
+		if last_error:
 			last_error = False
 			continue
-		if translated_name.find("decode err: Filename too small to decode") != -1:
+		if translated_name.find("decode err: ") != -1:
 			last_error = True
 			translated_name = node_names[list_id]
 		list_for_return.append([node_names[list_id], translated_name])
@@ -111,4 +111,3 @@ def check_if_files_in_changed(node):
 		return True
 	else:
 		return False
-
