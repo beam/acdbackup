@@ -35,7 +35,7 @@ class RemoteNode(BaseNode):
 			if show_progress: progress_bar.update()
 		if show_progress: progress_bar.close()
 
-	def insert_node(node, plain_name = ''):
+	def insert_node(node, plain_name = None):
 		if node['status'] == 'PENDING': return False
 		if node['kind'] == 'FILE':
 			if not 'name' in node or not node['name']: return False
@@ -44,6 +44,7 @@ class RemoteNode(BaseNode):
 			if 'isRoot' in node and node['isRoot']:
 				node['name'] = '/'
 				node['parents'] = [None]
+				plain_name = '/'
 			if not 'name' in node or not node['name']: return False
 			RemoteNode.insert(id = node['id'], node_type = 'D', name = node.get('name'), parent = node.get('parents')[0], plain_name = plain_name).upsert().execute()
 		else:

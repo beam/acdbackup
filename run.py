@@ -31,8 +31,8 @@ walk_directory_and_create_node(None, config.BACKUP_DIR, progress_bar, LAST_SEEN_
 progress_bar.clear()
 progress_bar.close()
 
-# Descrypt name
-log("Decrypting encrypted node names")
+# Descrypt local name
+log("Decrypting encrypted local node names")
 unencrypted_nodes = Node.find_all_unencrypted_names()
 if unencrypted_nodes.count() > 0:
 	progress_bar = tqdm(total=unencrypted_nodes.count(), desc='Collecting names for decrypting', unit='node', dynamic_ncols=True)
@@ -66,6 +66,30 @@ for node in all_files:
 	progress_bar.update()
 progress_bar.close()
 
+# Synchronize remote nodes with local cache
+log("Synchronize remote nodes")
+RemoteNode.sync()
+
+# Decrypt remote names
+log("Decrypting encrypted remote node names")
+unencrypted_nodes = RemoteNode.find_all_unencrypted_names()
+if unencrypted_nodes.count() > 0:
+	progress_bar = tqdm(total=unencrypted_nodes.count(), desc='Collecting names for decrypting', unit='node', dynamic_ncols=True)
+	names = []
+	for node in unencrypted_nodes:
+		names.append(node.name)
+		progress_bar.update()
+	progress_bar.close()
+
+	decrpyted_data = descrypt_encfs_names(names)
+
+	# Save decrypted data
+	progress_bar = tqdm(total=unencrypted_nodes.count(), desc='Saving decrypted names', unit='node', dynamic_ncols=True)
+	for node in decrpyted_data:
+		progress_bar.update()
+		RemoteNode.save_decrypted_name(node[0],node[1])
+	progress_bar.close()
+
 # Create directory tree on server
 
 # Unmounting encrypted folders
@@ -73,8 +97,6 @@ for backup_item in config.BACKUP:
 	log("Unmounting " + backup_item['dest'])
 	umount_encrypted_destination(backup_item)
 	# cleanup
-log("Synchronize remote nodes")
-RemoteNode.sync()
 
 log("End")
 

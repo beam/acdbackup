@@ -1,4 +1,3 @@
-import os
 from peewee import *
 
 from database import BaseNode
@@ -34,20 +33,6 @@ class Node(BaseNode):
 			return Node.get(Node.parent == parent_node, Node.name == node_name, Node.node_type == node_type)
 		except DoesNotExist:
 			return None
-
-	def get_node_path(self, path_type = 'name'):
-		node_id = self.id
-		path_list = []
-		while True:
-			node = Node.get(Node.id == node_id)
-			if path_type == 'name':
-				path_list.append(node.name)
-			elif path_type == 'plain':
-				path_list.append(node.plain_name)
-			if node.parent_id == None: break
-			node_id = node.parent_id
-		path_list.reverse()
-		return (os.path.join(*path_list))
 
 	# def last_node_from_directory_path(directory):
 	# 	last_node, directory_list = None, directory.split(os.sep)
