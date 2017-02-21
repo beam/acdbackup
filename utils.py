@@ -3,7 +3,7 @@ import config
 
 from subprocess import Popen, PIPE, STDOUT, check_call
 from md5_hash import md5_hash_file
-from nodes import Node
+from database import Node,RemoteNode
 from tqdm import tqdm
 
 import colorama
@@ -72,6 +72,22 @@ def walk_directory_and_create_node(parent_id, current_directory, progress_bar, l
 		node = Node.find_or_create_node(parent_id, dir_subdir, "D")
 		if last_seen_at: Node.update_last_seen_at(node,last_seen_at)
 		walk_directory_and_create_node(node, os.path.join(current_directory, dir_subdir), progress_bar, last_seen_at)
+
+def walk_cache_and_create_remote_directories(local_parent_id, remote_parent_id, progress_bar = None, last_seen_at = None):
+	for node in Node.get_all_subdirectories(local_parent_id, last_seen_at):
+		remote_node = RemoteNode.get_dir_by_name_and_parent(node.name, remote_parent_id)
+		if len(remote_node) == 1:
+			remote_node = remote_node.first()
+		elif len(remote_node) == 0:
+			remote_node = RemoteNode.create_folder(node.name,remote_parent_id,node.plain_name)
+			if not remote_node:
+				log("Creating directory " + node.get_node_path('plain') + ' failed!', 'error')
+				raise Exception("Something wrong")
+			log("Directory: " + remote_node.get_node_path('plain') + " created",'debug')
+		elif len(remote_node) > 1:
+			 raise Exception("More than one result by name")
+		if progress_bar: progress_bar.update()
+		walk_cache_and_create_remote_directories(node.id, remote_node.id, progress_bar, last_seen_at)
 
 def descrypt_encfs_names(node_names, delete_pass_file = True):
 	my_env = os.environ

@@ -90,6 +90,17 @@ if unencrypted_nodes.count() > 0:
 		RemoteNode.save_decrypted_name(node[0],node[1])
 	progress_bar.close()
 
+if RemoteNode.get_root_node() == None: raise Exception("Missing root node on remote cache, please resync")
+CHROOT_NODE = RemoteNode.find_node_by_path(config.REMOTE_BACKUP_DESTINATION)
+if CHROOT_NODE == None: raise Exception("Missing chroot dir, please create on server")
+
+# Create directory tree on server
+log("Creating directory tree on remote server")
+total_count = Node.select().where(Node.last_seen_at == LAST_SEEN_AT).where(Node.node_type == 'D').count()
+progress_bar = tqdm(total=total_count, desc='Creating remote directories', unit='dir', dynamic_ncols=True)
+walk_cache_and_create_remote_directories(None, CHROOT_NODE, progress_bar, LAST_SEEN_AT)
+progress_bar.close()
+
 # Create directory tree on server
 
 # Unmounting encrypted folders

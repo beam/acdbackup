@@ -13,8 +13,18 @@ class Node(BaseNode):
 	size = BigIntegerField(null = True, default = None)
 	last_seen_at = TimestampField(null = True, default = None, index = True)
 
+	class Meta:
+		indexes = (
+			(('parent', 'last_seen_at'), False),
+		)
+
 	def get_last_seen_at():
-		return int(Node.select(fn.MAX(Node.last_seen_at)).scalar())
+		node = Node.select(fn.MAX(Node.last_seen_at)).scalar()
+		if node:
+			return int(node)
+		else:
+			return 0
+		# return int(Node.select(fn.MAX(Node.last_seen_at)).scalar())
 
 	def update_last_seen_at(node, last_seen_at):
 		return Node.update(last_seen_at=last_seen_at).where(Node.id == node.id).execute()

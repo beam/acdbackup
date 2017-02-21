@@ -8,6 +8,8 @@ ACD_SETTINGS_PATH = "/root/.config/acd_cli"
 
 BACKUP_DIR = "/backup"
 
+REMOTE_BACKUP_DESTINATION = "/Backup"
+
 BACKUP = [
 	{
 		'source'	:	'/nas/HDD1', # real path

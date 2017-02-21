@@ -1,8 +1,11 @@
 from peewee import *
 from tqdm import tqdm
 
+import time
+
 from config import ACD_CACHE_PATH, ACD_SETTINGS_PATH
 from acdcli.api import client as acdclient_api
+from acdcli.api.common import RequestError as acd_RequestError
 acd_client = acdclient_api.ACDClient(ACD_CACHE_PATH,ACD_SETTINGS_PATH)
 
 # https://github.com/yadayada/acd_cli/blob/master/acd_cli.py
@@ -20,8 +23,38 @@ class RemoteNode(BaseNode):
 	plain_name = TextField(null = True, default = None)
 	md5 = FixedCharField(max_length = 32, null = True, default = None, index = True)
 
+	class Meta:
+		indexes = (
+			(('parent', 'name', 'node_type'), True),
+		)
+
+	## Remote calling
+	def create_folder(folder_name, parent_id, plain_name = None):
+		for attempt in range(10):
+			try:
+				new_folder = acd_client.create_folder(folder_name, parent_id)
+				RemoteNode.insert_node(new_folder, plain_name)
+				return RemoteNode.get(RemoteNode.id == new_folder.get('id'))
+			except acd_RequestError as e:
+				if e.msg.find("Rate exceeded") != -1 and e.status_code == 429:
+					for i in tqdm(range((attempt+1)*30),desc='Waiting for another try', unit='sec', dynamic_ncols=True):
+						time.sleep(1)
+				else:
+					tqdm.write(str(e))
+					return None
+		else:
+			return None
+
+	## Local cache
 	def truncate():
 		RemoteNode.delete().execute()
+
+	def get_root_node():
+		node = RemoteNode.select().where(RemoteNode.parent_id == None).naive()
+		if node:
+		    return node.first()
+		else:
+		    return None
 
 	def set_checkpoint(last_checkpoint):
 		RemoteNode.insert(id = 'checkpoint', node_type = 'A', name = last_checkpoint).upsert().execute()
@@ -37,6 +70,7 @@ class RemoteNode(BaseNode):
 
 	def insert_node(node, plain_name = None):
 		if node['status'] == 'PENDING': return False
+		if node['status'] == 'TRASH': return False
 		if node['kind'] == 'FILE':
 			if not 'name' in node or not node['name']: return False
 			RemoteNode.insert(id = node['id'], node_type = 'F', name = node.get('name'), md5 = node.get('contentProperties').get('md5'), parent = node.get('parents')[0], plain_name = plain_name).upsert().execute()
