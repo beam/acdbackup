@@ -12,7 +12,7 @@ acd_client = acdclient_api.ACDClient(ACD_CACHE_PATH,ACD_SETTINGS_PATH)
 # https://github.com/yadayada/acd_cli/blob/master/acdcli/api/metadata.py
 # https://github.com/yadayada/acd_cli/blob/master/acdcli/cache/sync.py
 
-from database import BaseNode
+from database import BaseNode,NodeCache
 
 class RemoteNode(BaseNode):
 
@@ -22,6 +22,8 @@ class RemoteNode(BaseNode):
 	name = TextField(index = True)
 	plain_name = TextField(null = True, default = None)
 	md5 = FixedCharField(max_length = 32, null = True, default = None, index = True)
+
+	cache_section = "R"
 
 	class Meta:
 		indexes = (
@@ -46,29 +48,25 @@ class RemoteNode(BaseNode):
 			return None
 
 	## Local cache
-	def truncate():
+	def truncate_cache():
 		RemoteNode.delete().execute()
 
 	def get_root_node():
-		node = RemoteNode.select().where(RemoteNode.parent_id == None).naive()
-		if node:
-		    return node.first()
-		else:
-		    return None
+		return RemoteNode.select().where(RemoteNode.parent_id == None).execute().first()
 
 	def set_checkpoint(last_checkpoint):
 		RemoteNode.insert(id = 'checkpoint', node_type = 'A', name = last_checkpoint).upsert().execute()
 		return last_checkpoint
 
-	def insert_nodes(nodes, show_progress = True):
+	def insert_nodes_into_cache(nodes, show_progress = True):
 		nodes_count = len(nodes)
 		if show_progress: progress_bar = tqdm(total=nodes_count, desc='Creating remote nodes in cache', unit='node', dynamic_ncols=True)
 		for node in nodes:
-			RemoteNode.insert_node(node)
+			RemoteNode.insert_node_into_cache(node)
 			if show_progress: progress_bar.update()
 		if show_progress: progress_bar.close()
 
-	def insert_node(node, plain_name = None):
+	def insert_node_into_cache(node, plain_name = None):
 		if node['status'] == 'PENDING': return False
 		if node['status'] == 'TRASH': return False
 		if node['kind'] == 'FILE':
@@ -85,14 +83,14 @@ class RemoteNode(BaseNode):
 			return False
 		return RemoteNode.get(id = node['id'])
 
-	def remove_nodes(nodes, show_progress = True):
+	def remove_nodes_from_cache(nodes, show_progress = True):
 		if show_progress: progress_bar = tqdm(total=len(nodes), desc='Removing remote nodes from cache', unit='node', dynamic_ncols=True)
 		for node in nodes:
-			RemoteNode.remove_node(node)
+			RemoteNode.remove_node_from_cache(node)
 			if show_progress: progress_bar.update()
 		if show_progress: progress_bar.close()
 
-	def remove_node(node_id):
+	def remove_node_from_cache(node_id):
 		return RemoteNode.delete().where(RemoteNode.id == node_id).execute()
 
 	def checkpoint():
@@ -103,7 +101,7 @@ class RemoteNode(BaseNode):
 
 	def sync():
 		checkpoint = RemoteNode.checkpoint()
-		if checkpoint == None: RemoteNode.truncate()
+		if checkpoint == None: RemoteNode.truncate_cache()
 		acd_changeset_file = acd_client.get_changes(checkpoint=checkpoint, include_purged=bool(checkpoint))
 		changeset_count = sum(1 for line in acd_changeset_file) - 1
 		acd_changeset_file.seek(0)
@@ -112,9 +110,9 @@ class RemoteNode(BaseNode):
 			if changeset.reset:
 				RemoteNode.truncate()
 			else:
-				if len(changeset.purged_nodes) > 0: RemoteNode.remove_nodes(changeset.purged_nodes)
+				if len(changeset.purged_nodes) > 0: RemoteNode.remove_nodes_from_cache(changeset.purged_nodes)
 
-			if len(changeset.nodes) > 0: RemoteNode.insert_nodes(changeset.nodes)
+			if len(changeset.nodes) > 0: RemoteNode.insert_nodes_into_cache(changeset.nodes)
 			if len(changeset.nodes) > 0 or len(changeset.purged_nodes) > 0: RemoteNode.set_checkpoint(changeset.checkpoint)
 			progress_bar.update()
 		progress_bar.close()

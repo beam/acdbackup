@@ -19,6 +19,7 @@ import colorama
 # 		print(self.current)
 
 
+
 def log(message,msg_type = 'info'):
 	if msg_type == 'info':
 		msg_color = colorama.Fore.YELLOW
@@ -127,3 +128,70 @@ def check_if_files_in_changed(node):
 		return True
 	else:
 		return False
+
+def upload_file_on_server(local_node, remote_parent):
+	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent)
+	if remote_nodes_already_exits: # overwrite file
+		log('Soubor k prepsani: ' + str(remote_nodes_already_exits.first().get_node_path('plain')),'debug')
+	else: # upload file
+		log('Soubor k uploadovani : ' + str(local_node.get_node_path('plain')),'debug')
+
+def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
+	known_md5 = []
+	for node in Node.select().where(Node.last_seen_at == last_seen_at).where(Node.node_type == 'F'):#.offset(170000):
+		if not node.md5:
+			log("File " + node.get_node_path('plain') + " without MD5 hash!",'error')
+			raise Exception("Something wrong")
+		remote_nodes = RemoteNode.select().where(RemoteNode.md5 == node.md5).execute()
+		local_node_directory = node.parent.get_node_path() if node.parent else ""
+		remote_parent = RemoteNode.find_node_by_path(local_node_directory,None,remote_chroot_node.id)
+		if remote_parent == None:
+			log("Parent missing! " + node.get_node_path() + ' = '+ node.get_node_path('plain'), 'error')
+			raise Exception("Something wrong")
+
+		if len(remote_nodes) == 0:
+			upload_file_on_server(node, remote_parent)
+			# log("Upload file " + node.get_node_path('plain'), 'debug')
+			continue
+		# elif len(remote_nodes) == 1:
+			# if not remote_chroot_node.id in remote_nodes.first().get_node_path('id'):
+			# 	log("File is outside backup dir: " + remote_nodes.first().get_node_path('plain'))
+			# 	# handle as new file to upload
+			# 	continue
+			# # test jestli je v backup directory
+			# if remote_nodes.first().parent != remote_parent:
+			# 	if remote_nodes.first().name == node.name:
+			# 		log("File moved " + node.get_node_path('plain') + " to " + remote_nodes.first().get_node_path('plain', remote_chroot_node.id))
+			# 	else:
+			# 		log("File moved and renamed " + node.get_node_path('plain') + " to " + remote_nodes.first().get_node_path('plain', remote_chroot_node.id))
+			# elif remote_nodes.first().parent == remote_parent and remote_nodes.first().name != node.name:
+			# 	log("File renamed " + node.plain_name + " / " + remote_nodes.first().plain_name)
+
+		# if not node.parent:
+		# 	parent_node_path = ""
+		# 	r = RemoteNode.find_node_by_path(parent_node_path,None,remote_chroot_node)
+		# 	log("Parent missing! " + node.get_node_path() + ' = '+ r.get_node_path('plain'), 'error')
+
+		# if len(remote_nodes) > 1 and not node.md5 in known_md5:
+		# 	log(node.plain_name + " x " + str(len(remote_nodes)),'debug')
+		# 	known_md5.append(node.md5)
+		# 	for remote_node in remote_nodes:
+		# 		log(remote_node.get_node_path('plain'))
+		#
+		# if len(remote_nodes) == 0:
+		# 	if not node.parent:
+		# 		log("Parent missing! " + node.get_node_path() + ' = '+ node.get_node_path('plain'), 'error')
+		# 	# parent_node_id = RemoteNode.find_node_by_path(Node.get_node_path(),None,remote_chroot_node)
+			# if parent_node_id == None:
+			# 	log("Parent missing! " + node.get_node_path() + ' = '+ node.get_node_path('plain'), 'error')
+			# else:
+			# 	log(node.plain_name + " new file into " + parent_node_id)
+
+		progress_bar.update(node.size)
+
+class AcdProgressBar(object):
+	def __init__(self, progress_bar):
+		self.progress_bar = progress_bar
+
+	def update(self, chunk):
+		self.progress_bar.update(chunk.__sizeof__())

@@ -1,6 +1,6 @@
 from peewee import *
 
-from database import BaseNode
+from database import BaseNode,NodeCache
 
 class Node(BaseNode):
 
@@ -13,18 +13,20 @@ class Node(BaseNode):
 	size = BigIntegerField(null = True, default = None)
 	last_seen_at = TimestampField(null = True, default = None, index = True)
 
+	cache_section = "N"
+
 	class Meta:
 		indexes = (
 			(('parent', 'last_seen_at'), False),
 		)
 
+	def get_total_size(last_seen_at):
+		node = Node.select(fn.SUM(Node.size)).where(Node.last_seen_at == last_seen_at).scalar()
+		return int(node) if node else 0
+
 	def get_last_seen_at():
 		node = Node.select(fn.MAX(Node.last_seen_at)).scalar()
-		if node:
-			return int(node)
-		else:
-			return 0
-		# return int(Node.select(fn.MAX(Node.last_seen_at)).scalar())
+		return int(node) if node else 0
 
 	def update_last_seen_at(node, last_seen_at):
 		return Node.update(last_seen_at=last_seen_at).where(Node.id == node.id).execute()
