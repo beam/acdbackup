@@ -12,6 +12,7 @@ from queue import Queue
 thread_lock = threading.Lock()
 
 import colorama
+from acdcli.api.common import RequestError as acd_RequestError
 
 # colorama.init(autoreset=True)
 
@@ -150,15 +151,23 @@ def upload_file_on_server(local_node, remote_parent):
 
 def threaded_upload_file_on_server(upload_queue):
 	while True:
-		local_node, remote_parent, progress_bar = upload_queue.get()
-		upload_file_on_server(local_node, remote_parent)
+		local_node, remote_parent, retry_count, progress_bar = upload_queue.get()
+		for attempt in range(retry_count):
+			try:
+				upload_file_on_server(local_node, remote_parent)
+				break
+			except acd_RequestError as e:
+				log("Error: " + str(e) + " on file " + local_node.plain_name + ". Retry " + str(attempt), 'error')
+				time.sleep(5)
+				pass
 		with thread_lock: progress_bar.update(local_node.size)
 		upload_queue.task_done()
 
 
 def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 	known_md5 = []
-	thread_upload_count = 6
+	retry_count = 3 # move to config
+	thread_upload_count = 6 # move to config
 	upload_queue = Queue(thread_upload_count - 1)
 	for x in range(thread_upload_count):
 		t = threading.Thread(target=threaded_upload_file_on_server,args=(upload_queue,))
@@ -177,7 +186,7 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 			raise Exception("Something wrong")
 
 		if len(remote_nodes) == 0:
-			upload_queue.put((node, remote_parent, progress_bar))
+			upload_queue.put((node, remote_parent, retry_count, progress_bar))
 		else:
 			with thread_lock: progress_bar.update(node.size)
 			# log("Upload file " + node.get_node_path('plain'), 'debug')
