@@ -7,7 +7,7 @@ import os
 # logger.setLevel(logging.DEBUG)
 # logger.addHandler(logging.StreamHandler())
 
-db = SqliteDatabase('acdbackup.db', pragmas = ( ("synchronous","OFF"), ("journal_mode","MEMORY") ) )
+db = SqliteDatabase('acdbackup.db', check_same_thread=False, pragmas = ( ("synchronous","OFF"), ("journal_mode","MEMORY") ) )
 
 from peewee import NaiveQueryResultWrapper
 def query_first(self):
