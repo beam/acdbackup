@@ -52,13 +52,9 @@ class RemoteNode(BaseNode):
 			return None
 
 	def upload_file(local_path, parent_node_id, plain_file_name = None, progress_bar = None):
-		if progress_bar:
-			local_file_size = os.lstat(local_path).st_size
-			progress_bar = tqdm(total=local_file_size, desc='Uploading file: ' + str(plain_file_name), unit='B', unit_scale=True, dynamic_ncols=True)
 		result = acd_client.upload_file(local_path, parent_node_id, [AcdProgressBar(progress_bar).update])
 		node = RemoteNode.insert_node_into_cache(result, plain_file_name)
 		node.clear_my_relevant_cache()
-		if progress_bar: progress_bar.close()
 		return node
 
 	## Local cache

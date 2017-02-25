@@ -6,6 +6,11 @@ from md5_hash import md5_hash_file
 from database import Node,RemoteNode
 from tqdm import tqdm
 
+import threading
+from queue import Queue
+
+thread_lock = threading.Lock()
+
 import colorama
 
 # colorama.init(autoreset=True)
@@ -27,7 +32,7 @@ def log(message,msg_type = 'info'):
 		msg_color = colorama.Fore.RED
 	elif msg_type == 'debug':
 		msg_color = colorama.Fore.WHITE
-	tqdm.write(colorama.Fore.GREEN + time.strftime('%Y-%m-%d %H:%M:%S') + " " + msg_color + message + colorama.Style.RESET_ALL)
+	with thread_lock: tqdm.write(colorama.Fore.GREEN + time.strftime('%Y-%m-%d %H:%M:%S') + " " + msg_color + message + colorama.Style.RESET_ALL)
 
 def encfs_password_file(create = True):
 	file_path = os.path.join(config.TMP_DIR,"encfs-pass.sh")
@@ -131,15 +136,35 @@ def check_if_files_in_changed(node):
 
 def upload_file_on_server(local_node, remote_parent):
 	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent)
-	local_file = local_node.get_node_path()
+	local_file = os.path.join(config.BACKUP_DIR,local_node.get_node_path())
+	local_file_size = os.lstat(local_file).st_size
+	with thread_lock: progress_bar = tqdm(total=local_file_size, desc='Uploading file: ' + str(local_node.plain_name), unit='B', unit_scale=True, dynamic_ncols=True, mininterval=1)
+
 	if remote_nodes_already_exits: # overwrite file
 		log('Soubor k prepsani: ' + str(remote_nodes_already_exits.first().get_node_path('plain')),'debug')
 	else: # upload file
-		RemoteNode.upload_file(os.path.join(config.BACKUP_DIR, local_file), remote_parent.id, local_node.plain_name, True)
+		RemoteNode.upload_file(os.path.join(config.BACKUP_DIR, local_file), remote_parent.id, local_node.plain_name, (progress_bar, thread_lock))
 		log('File ' + str(local_node.get_node_path('plain')) + ' uploaded','debug')
+
+	with thread_lock: progress_bar.close()
+
+def threaded_upload_file_on_server(upload_queue):
+	while True:
+		local_node, remote_parent, progress_bar = upload_queue.get()
+		upload_file_on_server(local_node, remote_parent)
+		with thread_lock: progress_bar.update(local_node.size)
+		upload_queue.task_done()
+
 
 def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 	known_md5 = []
+	thread_upload_count = 6
+	upload_queue = Queue(thread_upload_count - 1)
+	for x in range(thread_upload_count):
+		t = threading.Thread(target=threaded_upload_file_on_server,args=(upload_queue,))
+		t.daemon = True
+		t.start()
+
 	for node in Node.select().where(Node.last_seen_at == last_seen_at).where(Node.node_type == 'F'):#.offset(170000):
 		if not node.md5:
 			log("File " + node.get_node_path('plain') + " without MD5 hash!",'error')
@@ -152,7 +177,9 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 			raise Exception("Something wrong")
 
 		if len(remote_nodes) == 0:
-			upload_file_on_server(node, remote_parent)
+			upload_queue.put((node, remote_parent, progress_bar))
+		else:
+			with thread_lock: progress_bar.update(node.size)
 			# log("Upload file " + node.get_node_path('plain'), 'debug')
 
 		# elif len(remote_nodes) == 1:
@@ -189,4 +216,6 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 			# else:
 			# 	log(node.plain_name + " new file into " + parent_node_id)
 
-		progress_bar.update(node.size)
+
+	upload_queue.join()
+	with thread_lock: progress_bar.close()
