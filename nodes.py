@@ -35,10 +35,13 @@ class Node(BaseNode):
 		node = Node.find_node(parent_node, node_name, node_type)
 		if node == None:
 			node = Node.create_node(parent_node, node_name, node_type)
+		node.clear_my_relevant_cache()
 		return node
 
 	def create_node(parent_node, node_name, node_type):
-		return Node.create(parent = parent_node, name = node_name, node_type = node_type)
+		new_node = Node.create(parent = parent_node, name = node_name, node_type = node_type)
+		new_node.clear_my_relevant_cache()
+		return new_node
 
 	def find_node(parent_node, node_name, node_type):
 		try:

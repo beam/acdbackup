@@ -4,7 +4,7 @@ import os, time
 import config
 
 from md5_hash import md5_hash_file
-from database import Node,RemoteNode
+from database import Node,RemoteNode,NodeCache
 from tqdm import tqdm
 
 from utils import *

@@ -70,6 +70,10 @@ class NodeCache():
         cls.cache[section] = {}
 
     @classmethod
+    def clear(cls):
+        cls.cache = {}
+
+    @classmethod
     def print_me(cls):
         print(cls.cache)
 
@@ -125,6 +129,23 @@ class BaseNode(Model):
         if last_seen_at: nodes = nodes.where(cls.last_seen_at == last_seen_at) # for local Node
         return nodes.execute()
 
+    @classmethod
+    def clear_relevant_cache(cls, node):
+        if node == None: return False
+        if type(node) is str:
+            node_ids = [node]
+        else:
+            node_ids = [node.id, node.parent_id]
+
+        for node_id in node_ids:
+            if node_id == None: continue
+            NodeCache.clear_key(cls.cache_section, 'id', node_id)
+            NodeCache.clear_key(cls.cache_section, 'parent', node_id)
+
+        return True
+
+    def clear_my_relevant_cache(self):
+        type(self).clear_relevant_cache(self)
 
     def get_node_path(self, path_type = 'name', stop_on_node = None):
         node_id = self.id

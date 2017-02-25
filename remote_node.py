@@ -1,7 +1,10 @@
 from peewee import *
 from tqdm import tqdm
 
+import os
 import time
+
+from acd_progress_bar import AcdProgressBar
 
 from config import ACD_CACHE_PATH, ACD_SETTINGS_PATH
 from acdcli.api import client as acdclient_api
@@ -35,8 +38,9 @@ class RemoteNode(BaseNode):
 		for attempt in range(10):
 			try:
 				new_folder = acd_client.create_folder(folder_name, parent_id)
-				RemoteNode.insert_node(new_folder, plain_name)
-				return RemoteNode.get(RemoteNode.id == new_folder.get('id'))
+				node = RemoteNode.insert_node_into_cache(new_folder, plain_name)
+				node.clear_my_relevant_cache()
+				return node
 			except acd_RequestError as e:
 				if e.msg.find("Rate exceeded") != -1 and e.status_code == 429:
 					for i in tqdm(range((attempt+1)*30),desc='Waiting for another try', unit='sec', dynamic_ncols=True):
@@ -46,6 +50,16 @@ class RemoteNode(BaseNode):
 					return None
 		else:
 			return None
+
+	def upload_file(local_path, parent_node_id, plain_file_name = None, progress_bar = None):
+		if progress_bar:
+			local_file_size = os.lstat(local_path).st_size
+			progress_bar = tqdm(total=local_file_size, desc='Uploading file: ' + str(plain_file_name), unit='B', unit_scale=True, dynamic_ncols=True)
+		result = acd_client.upload_file(local_path, parent_node_id, [AcdProgressBar(progress_bar).update])
+		node = RemoteNode.insert_node_into_cache(result, plain_file_name)
+		node.clear_my_relevant_cache()
+		if progress_bar: progress_bar.close()
+		return node
 
 	## Local cache
 	def truncate_cache():
@@ -71,6 +85,8 @@ class RemoteNode(BaseNode):
 		if node['status'] == 'TRASH': return False
 		if node['kind'] == 'FILE':
 			if not 'name' in node or not node['name']: return False
+			old_node = RemoteNode.select().where(RemoteNode.id == node['id']).limit(1).first()
+			if old_node: old_node.clear_my_relevant_cache()
 			RemoteNode.insert(id = node['id'], node_type = 'F', name = node.get('name'), md5 = node.get('contentProperties').get('md5'), parent = node.get('parents')[0], plain_name = plain_name).upsert().execute()
 		elif node['kind'] == 'FOLDER':
 			if 'isRoot' in node and node['isRoot']:
@@ -78,10 +94,15 @@ class RemoteNode(BaseNode):
 				node['parents'] = [None]
 				plain_name = '/'
 			if not 'name' in node or not node['name']: return False
+			old_node = RemoteNode.select().where(RemoteNode.id == node['id']).limit(1).first()
+			if old_node: old_node.clear_my_relevant_cache()
 			RemoteNode.insert(id = node['id'], node_type = 'D', name = node.get('name'), parent = node.get('parents')[0], plain_name = plain_name).upsert().execute()
 		else:
 			return False
-		return RemoteNode.get(id = node['id'])
+
+		inserted_node = RemoteNode.get(id = node['id'])
+		inserted_node.clear_my_relevant_cache()
+		return inserted_node
 
 	def remove_nodes_from_cache(nodes, show_progress = True):
 		if show_progress: progress_bar = tqdm(total=len(nodes), desc='Removing remote nodes from cache', unit='node', dynamic_ncols=True)
@@ -91,6 +112,8 @@ class RemoteNode(BaseNode):
 		if show_progress: progress_bar.close()
 
 	def remove_node_from_cache(node_id):
+		node = RemoteNode.select().where(RemoteNode.id == node_id).first()
+		RemoteNode.clear_relevant_cache(node)
 		return RemoteNode.delete().where(RemoteNode.id == node_id).execute()
 
 	def checkpoint():

@@ -131,10 +131,12 @@ def check_if_files_in_changed(node):
 
 def upload_file_on_server(local_node, remote_parent):
 	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent)
+	local_file = local_node.get_node_path()
 	if remote_nodes_already_exits: # overwrite file
 		log('Soubor k prepsani: ' + str(remote_nodes_already_exits.first().get_node_path('plain')),'debug')
 	else: # upload file
-		log('Soubor k uploadovani : ' + str(local_node.get_node_path('plain')),'debug')
+		RemoteNode.upload_file(os.path.join(config.BACKUP_DIR, local_file), remote_parent.id, local_node.plain_name, True)
+		log('File ' + str(local_node.get_node_path('plain')) + ' uploaded','debug')
 
 def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 	known_md5 = []
@@ -152,7 +154,7 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 		if len(remote_nodes) == 0:
 			upload_file_on_server(node, remote_parent)
 			# log("Upload file " + node.get_node_path('plain'), 'debug')
-			continue
+
 		# elif len(remote_nodes) == 1:
 			# if not remote_chroot_node.id in remote_nodes.first().get_node_path('id'):
 			# 	log("File is outside backup dir: " + remote_nodes.first().get_node_path('plain'))
@@ -188,10 +190,3 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 			# 	log(node.plain_name + " new file into " + parent_node_id)
 
 		progress_bar.update(node.size)
-
-class AcdProgressBar(object):
-	def __init__(self, progress_bar):
-		self.progress_bar = progress_bar
-
-	def update(self, chunk):
-		self.progress_bar.update(chunk.__sizeof__())
