@@ -23,7 +23,14 @@ def walk_and_collect_local_nodes(LAST_SEEN_AT):
     log("Walking for collect nodes")
     total_count = Node.select().where(Node.last_seen_at == Node.get_last_seen_at()).count()
     progress_bar = tqdm(total=total_count, desc='Collecting nodes', unit='node', dynamic_ncols=True)
-    walk_directory_and_create_node(None, config.BACKUP_DIR, progress_bar, LAST_SEEN_AT)
+    nodes_ids = []
+    walk_directory_and_create_node(None, nodes_ids, config.BACKUP_DIR, progress_bar)
+    progress_bar.clear()
+    progress_bar.close()
+
+    log("Updating last seen_at")
+    progress_bar = tqdm(total=len(nodes_ids), desc='Updating last seen at', unit='node', dynamic_ncols=True)
+    Node.update_last_seen_at(nodes_ids, LAST_SEEN_AT, progress_bar)
     progress_bar.clear()
     progress_bar.close()
     return True

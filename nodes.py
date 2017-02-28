@@ -28,8 +28,13 @@ class Node(BaseNode):
 		node = Node.select(fn.MAX(Node.last_seen_at)).scalar()
 		return int(node) if node else 0
 
-	def update_last_seen_at(node, last_seen_at):
-		return Node.update(last_seen_at=last_seen_at).where(Node.id == node.id).execute()
+	def update_last_seen_at(nodes_ids, last_seen_at, progress_bar = None):
+		if not type(nodes_ids) is list: nodes_ids = [nodes_ids]
+		for chunker_pos in range(0, len(nodes_ids), 100): # chunk list for SQL
+			nodes_chunk = nodes_ids[chunker_pos:chunker_pos+100]
+			Node.update(last_seen_at=last_seen_at).where(Node.id << nodes_chunk).execute()
+			if progress_bar: progress_bar.update(len(nodes_chunk))
+		return True
 
 	def find_or_create_node(parent_node, node_name, node_type):
 		node = Node.find_node(parent_node, node_name, node_type)

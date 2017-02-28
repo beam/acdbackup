@@ -85,18 +85,18 @@ def umount_encrypted_destination(backup_item):
 	if os.path.ismount(backup_item['dest']):
 		check_call(['umount',backup_item['dest']])
 
-def walk_directory_and_create_node(parent_id, current_directory, progress_bar, last_seen_at = None):
+def walk_directory_and_create_node(parent_id, nodes_id, current_directory, progress_bar):
 	(root, directories, files) = next(os.walk(current_directory))
 	for dir_file in files:
 		if os.path.islink(os.path.join(current_directory,dir_file)): continue
 		progress_bar.update()
 		node = Node.find_or_create_node(parent_id, dir_file, "F")
-		if last_seen_at: Node.update_last_seen_at(node,last_seen_at)
+		nodes_id.append(node.id)
 	for dir_subdir in directories:
 		progress_bar.update()
 		node = Node.find_or_create_node(parent_id, dir_subdir, "D")
-		if last_seen_at: Node.update_last_seen_at(node,last_seen_at)
-		walk_directory_and_create_node(node, os.path.join(current_directory, dir_subdir), progress_bar, last_seen_at)
+		nodes_id.append(node.id)
+		walk_directory_and_create_node(node, nodes_id, os.path.join(current_directory, dir_subdir), progress_bar)
 
 def walk_cache_and_create_remote_directories(local_parent_id, remote_parent_id, progress_bar = None, last_seen_at = None):
 	for node in Node.get_all_subdirectories(local_parent_id, last_seen_at):
