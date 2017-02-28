@@ -20,3 +20,5 @@ BACKUP = [
 		'dest'		:	BACKUP_DIR + '/HDD2'
 	},
 ]
+
+LOG_FILE = "acdbackup.log"

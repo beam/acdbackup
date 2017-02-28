@@ -1,14 +1,8 @@
 from peewee import *
-from playhouse.sqliteq import SqliteQueueDatabase
 import re
 import os
 
-# import logging
-# logger = logging.getLogger('peewee')
-# logger.setLevel(logging.DEBUG)
-# logger.addHandler(logging.StreamHandler())
-
-db = SqliteQueueDatabase('acdbackup.db')
+db = SqliteDatabase('acdbackup.db')
 
 from peewee import NaiveQueryResultWrapper
 def query_first(self):
@@ -173,5 +167,4 @@ from nodes import Node
 from remote_node import RemoteNode
 
 db.connect()
-db.start()
 db.create_tables([Node,RemoteNode], safe = True)

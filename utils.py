@@ -33,7 +33,14 @@ def log(message,msg_type = 'info'):
 		msg_color = colorama.Fore.RED
 	elif msg_type == 'debug':
 		msg_color = colorama.Fore.WHITE
-	with thread_lock: tqdm.write(colorama.Fore.GREEN + time.strftime('%Y-%m-%d %H:%M:%S') + " " + msg_color + message + colorama.Style.RESET_ALL)
+	with thread_lock:
+		full_message = colorama.Fore.GREEN + time.strftime('%Y-%m-%d %H:%M:%S') + " " + msg_color + message + colorama.Style.RESET_ALL
+		tqdm.write(full_message)
+		if config.LOG_FILE:
+			f = open(config.LOG_FILE,"a")
+			f.write(full_message)
+			f.write("\n")
+			f.close()
 
 def encfs_password_file(create = True):
 	file_path = os.path.join(config.TMP_DIR,"encfs-pass.sh")
