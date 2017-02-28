@@ -1,4 +1,4 @@
-import os, stat,time
+import os, stat, time, sys
 import config
 
 from subprocess import Popen, PIPE, STDOUT, check_call
@@ -13,18 +13,6 @@ thread_lock = threading.Lock()
 
 import colorama
 from acdcli.api.common import RequestError as acd_RequestError
-
-# colorama.init(autoreset=True)
-
-# class FileProgress(object):
-# 	def __init__(self):
-# 		self.current = 0
-
-# 	def update(self, chunk):
-# 		self.current += chunk.__sizeof__()
-# 		print(self.current)
-
-
 
 def log(message,msg_type = 'info'):
 	if msg_type == 'info':
@@ -41,6 +29,29 @@ def log(message,msg_type = 'info'):
 			f.write(full_message)
 			f.write("\n")
 			f.close()
+
+def query_yes_no(question, default="yes"):
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
 
 def encfs_password_file(create = True):
 	file_path = os.path.join(config.TMP_DIR,"encfs-pass.sh")
@@ -78,11 +89,11 @@ def walk_directory_and_create_node(parent_id, current_directory, progress_bar, l
 	(root, directories, files) = next(os.walk(current_directory))
 	for dir_file in files:
 		if os.path.islink(os.path.join(current_directory,dir_file)): continue
-		progress_bar.update(1)
+		progress_bar.update()
 		node = Node.find_or_create_node(parent_id, dir_file, "F")
 		if last_seen_at: Node.update_last_seen_at(node,last_seen_at)
 	for dir_subdir in directories:
-		progress_bar.update(1)
+		progress_bar.update()
 		node = Node.find_or_create_node(parent_id, dir_subdir, "D")
 		if last_seen_at: Node.update_last_seen_at(node,last_seen_at)
 		walk_directory_and_create_node(node, os.path.join(current_directory, dir_subdir), progress_bar, last_seen_at)
