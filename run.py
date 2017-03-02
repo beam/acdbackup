@@ -12,7 +12,9 @@ if walk_local_dirs:
 	import time
 	LAST_SEEN_AT = int(time.time())
 else:
-	log("Run ID: " + str(LAST_SEEN_AT))
+	LAST_SEEN_AT = get_last_local_seen_at()
+
+log("Run ID: " + str(LAST_SEEN_AT))
 
 # Mounting encrypted folders
 if query_yes_no("Mount encfs?"): mount_encrypted_dirs()
@@ -22,6 +24,9 @@ if walk_local_dirs: walk_and_collect_local_nodes(LAST_SEEN_AT)
 
 # Descrypt local name
 if walk_local_dirs: decrypt_local_node_names(LAST_SEEN_AT)
+
+# Exclude files
+if query_yes_no("Mark excluded files and dirs?"): exclude_directories_and_files(LAST_SEEN_AT)
 
 # Get last modify and hash
 if walk_local_dirs: collect_local_node_last_modify_and_hash(LAST_SEEN_AT)

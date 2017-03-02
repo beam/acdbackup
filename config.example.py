@@ -21,4 +21,8 @@ BACKUP = [
 	},
 ]
 
+BACKUP_EXCLUDE = [
+	'HDD2/DO/NOT/COPY/THIS'
+]
+
 LOG_FILE = "acdbackup.log"

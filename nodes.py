@@ -5,7 +5,7 @@ from database import BaseNode,NodeCache
 class Node(BaseNode):
 
 	parent = ForeignKeyField("self", null = True, default = None)
-	node_type = FixedCharField(max_length = 1)
+	node_type = FixedCharField(max_length = 1) # F - files, D - directory, E - excluded directory, I - excluded file
 	name = TextField(index = True)
 	plain_name = TextField(null = True, default = None)
 	mtime = TimestampField(null = True, default = None)
@@ -20,8 +20,19 @@ class Node(BaseNode):
 			(('parent', 'last_seen_at'), False),
 		)
 
+	def include_all_excluded_files():
+		Node.update(node_type = 'D').where(Node.node_type == 'E').execute()
+		Node.update(node_type = 'F').where(Node.node_type == 'I').execute()
+		return True
+
+	def exclude_node(node_id):
+		Node.update(node_type = 'I').where(Node.node_type == 'F').where(Node.parent_id == node_id).execute()
+		for excluded_node_dir in Node.select().where(Node.node_type == 'D').where(Node.parent_id == node_id):
+			Node.exclude_node(excluded_node_dir.id)
+		Node.update(node_type = 'E').where(Node.node_type == 'D').where(Node.parent_id == node_id).execute()
+
 	def get_total_size(last_seen_at):
-		node = Node.select(fn.SUM(Node.size)).where(Node.last_seen_at == last_seen_at).scalar()
+		node = Node.select(fn.SUM(Node.size)).where(Node.last_seen_at == last_seen_at).where(Node.node_type == 'F').scalar()
 		return int(node) if node else 0
 
 	def get_last_seen_at():

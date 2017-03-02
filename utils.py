@@ -154,18 +154,21 @@ def check_if_files_in_changed(node):
 		return False
 
 def upload_file_on_server(local_node, remote_parent):
-	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent)
+	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent).first()
 	local_file = os.path.join(config.BACKUP_DIR,local_node.get_node_path())
 	local_file_size = os.lstat(local_file).st_size
 	with thread_lock: progress_bar = tqdm(total=local_file_size, desc='Uploading file: ' + str(local_node.plain_name), unit='B', unit_scale=True, dynamic_ncols=True, mininterval=1)
 
 	if remote_nodes_already_exits: # overwrite file
-		log('Soubor k prepsani: ' + str(remote_nodes_already_exits.first().get_node_path('plain')),'debug')
+		RemoteNode.replace_file(os.path.join(config.BACKUP_DIR, local_file), remote_nodes_already_exits.id, local_node.plain_name, (progress_bar, thread_lock))
+		log('File ' + str(local_node.get_node_path('plain')) + ' uploaded and overwritten','debug')
 	else: # upload file
 		RemoteNode.upload_file(os.path.join(config.BACKUP_DIR, local_file), remote_parent.id, local_node.plain_name, (progress_bar, thread_lock))
 		log('File ' + str(local_node.get_node_path('plain')) + ' uploaded','debug')
 
-	with thread_lock: progress_bar.close()
+	with thread_lock:
+		progress_bar.clear()
+		progress_bar.close()
 
 def threaded_upload_file_on_server(upload_queue):
 	while True:

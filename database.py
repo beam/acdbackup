@@ -85,16 +85,17 @@ class BaseNode(Model):
     	return cls.select().group_by(cls.name).where(cls.plain_name == None)
 
     @classmethod
-    def find_node_by_path(cls, search_path, last_seen_at = None, parent_node = None):
+    def find_node_by_path(cls, search_path, last_seen_at = None, parent_node = None, search_by = 'name'):
         if search_path == '' and parent_node != None: return parent_node
         split_path = search_path.split(os.path.sep)
         for counter, path_part in enumerate(split_path):
             if path_part == "": path_part = "/"
             if not NodeCache.is_cached(cls.cache_section, "parent", (parent_node,path_part,last_seen_at)):
-                nodes = cls.select().where(cls.name == path_part).where(cls.node_type << ["F","D"]).where(cls.parent_id == parent_node)
+                nodes = cls.select().where(cls.node_type << ["F","D"]).where(cls.parent_id == parent_node)
+                nodes = nodes.where(cls.plain_name == path_part) if search_by == 'plain' else nodes.where(cls.name == path_part)
                 if last_seen_at: nodes = nodes.where(cls.last_seen_at == last_seen_at) # for local Node
                 nodes = nodes.execute()
-                NodeCache.set(cls.cache_section, "parent", (parent_node,path_part,last_seen_at), nodes)
+                if search_by == 'name': NodeCache.set(cls.cache_section, "parent", (parent_node,path_part,last_seen_at), nodes)
             else:
                 nodes = NodeCache.get(cls.cache_section, "parent", (parent_node,path_part,last_seen_at))
             if len(nodes) == 0:

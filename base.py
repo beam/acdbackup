@@ -24,6 +24,7 @@ def walk_and_collect_local_nodes(LAST_SEEN_AT):
     total_count = Node.select().where(Node.last_seen_at == Node.get_last_seen_at()).count()
     progress_bar = tqdm(total=total_count, desc='Collecting nodes', unit='node', dynamic_ncols=True)
     nodes_ids = []
+    Node.include_all_excluded_files()
     walk_directory_and_create_node(None, nodes_ids, config.BACKUP_DIR, progress_bar)
     progress_bar.clear()
     progress_bar.close()
@@ -60,6 +61,20 @@ def decrypt_local_node_names(LAST_SEEN_AT):
         progress_bar.clear()
         progress_bar.close()
     return True
+
+def exclude_directories_and_files(LAST_SEEN_AT):
+    if not hasattr(config,'BACKUP_EXCLUDE'): return False
+    if not config.BACKUP_EXCLUDE: return False
+    excluded_nodes = []
+    for excluded_dir in config.BACKUP_EXCLUDE:
+        excluded_node = Node.find_node_by_path(excluded_dir, None,None, 'plain')
+        if excluded_node: excluded_nodes.append(excluded_node.id)
+
+    if excluded_nodes:
+        for excluded_node in excluded_nodes:
+            Node.exclude_node(excluded_node)
+
+    return excluded_nodes
 
 # Get last modify and hash
 def collect_local_node_last_modify_and_hash(LAST_SEEN_AT):

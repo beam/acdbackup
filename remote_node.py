@@ -57,6 +57,12 @@ class RemoteNode(BaseNode):
 		node.clear_my_relevant_cache()
 		return node
 
+	def replace_file(local_path, node_id, plain_file_name = None, progress_bar = None):
+		result = acd_client.overwrite_file(node_id, local_path, [AcdProgressBar(progress_bar).update])
+		node = RemoteNode.insert_node_into_cache(result, plain_file_name)
+		node.clear_my_relevant_cache()
+		return node
+
 	## Local cache
 	def truncate_cache():
 		RemoteNode.delete().execute()
