@@ -141,3 +141,6 @@ class RemoteNode(BaseNode):
 			if len(changeset.nodes) > 0 or len(changeset.purged_nodes) > 0: RemoteNode.set_checkpoint(changeset.checkpoint)
 			progress_bar.update()
 		progress_bar.close()
+
+	def is_chrooted(self, chroot_node_id):
+		return chroot_node_id in self.get_node_path('id')

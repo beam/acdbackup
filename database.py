@@ -86,7 +86,7 @@ class BaseNode(Model):
 
     @classmethod
     def find_node_by_path(cls, search_path, last_seen_at = None, parent_node = None, search_by = 'name'):
-        if search_path == '' and parent_node != None: return parent_node
+        if search_path == '' and parent_node != None: return cls.get(id = parent_node)
         split_path = search_path.split(os.path.sep)
         for counter, path_part in enumerate(split_path):
             if path_part == "": path_part = "/"

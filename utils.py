@@ -209,6 +209,34 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 		if len(remote_nodes) == 0:
 			upload_queue.put((node, remote_parent, retry_count, progress_bar))
 		else:
+			file_is_on_right_place = False
+			for remote_node in remote_nodes: # check if one of files is on right place
+				if remote_parent.id == remote_node.parent_id:
+					file_is_on_right_place = True
+					selected_remote_node = remote_node
+					break
+
+			if not file_is_on_right_place:
+				for remote_node in remote_nodes: # check if is one of files is not on local file system (moved)
+					if not remote_node.is_chrooted(remote_chroot_node.id):
+						log("File: " + node.get_node_path('plain') + " is outside chroot " + remote_node.get_node_path('plain', remote_chroot_node))
+						continue # file is outside backup directory
+					remote_node_path = remote_node.get_node_path('name', remote_chroot_node)
+					if Node.find_node_by_path(remote_node_path, last_seen_at) == None:
+						log("moving file: " + remote_node.get_node_path('plain', remote_chroot_node) + " to " + remote_parent.get_node_path('plain'))
+						file_is_on_right_place = True
+						selected_remote_node = remote_node
+						break
+					else:
+						log("File: " + node.get_node_path('plain') + " is on " + remote_node.get_node_path('plain', remote_chroot_node))
+
+			if file_is_on_right_place == False:
+				log("upload file: " + node.get_node_path('plain'))
+			else:
+				if selected_remote_node.name != node.name: log("Renaming file: " + selected_remote_node.plain_name + " to " + node.plain_name)
+				selected_remote_node.clear_my_relevant_cache()
+				remote_parent.clear_my_relevant_cache()
+
 			with thread_lock: progress_bar.update(node.size)
 			# log("Upload file " + node.get_node_path('plain'), 'debug')
 
