@@ -52,6 +52,6 @@ if query_yes_no("Create remote directories?", "yes", interactive):
 if query_yes_no("Sync local nodes with remote?", "yes", interactive): sync_local_and_remote_nodes(LAST_SEEN_AT, CHROOT_NODE)
 
 # Unmounting encrypted folders
-if query_yes_no("Umount encfs?", "yes", interactive): umount_encrypted_dirs(s)
+if query_yes_no("Umount encfs?", "yes", interactive): umount_encrypted_dirs()
 
 log("End")
