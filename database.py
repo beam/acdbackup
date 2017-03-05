@@ -1,8 +1,7 @@
 from peewee import *
-import re
-import os
+import re, os
 
-db = SqliteDatabase('acdbackup.db', pragmas = (
+db = SqliteDatabase('acdbackup.db', threadlocals=False, check_same_thread=False, pragmas = (
     ( 'busy_timeout', 30000 ), # 30 s
     ( 'synchronous' , 'OFF' ),
 ))

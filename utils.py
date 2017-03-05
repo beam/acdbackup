@@ -30,9 +30,10 @@ def log(message,msg_type = 'info'):
 			f.write("\n")
 			f.close()
 
-def query_yes_no(question, default="yes"):
+def query_yes_no(question, default="yes", interactive = True):
     valid = {"yes": True, "y": True, "ye": True,
              "no": False, "n": False}
+    if not interactive: return valid[default]
     if default is None:
         prompt = " [y/n] "
     elif default == "yes":
