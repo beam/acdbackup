@@ -2,7 +2,10 @@ from peewee import *
 import re
 import os
 
-db = SqliteDatabase('acdbackup.db')
+db = SqliteDatabase('acdbackup.db', pragmas = (
+    ( 'busy_timeout', 30000 ), # 30 s
+    ( 'synchronous' , 'OFF' ),
+))
 
 from peewee import NaiveQueryResultWrapper
 def query_first(self):
@@ -82,7 +85,7 @@ class BaseNode(Model):
 
     @classmethod
     def find_all_unencrypted_names(cls):
-    	return cls.select().group_by(cls.name).where(cls.plain_name == None)
+        return cls.select().group_by(cls.name).where((cls.plain_name == None) | (cls.plain_name == ''))
 
     @classmethod
     def find_node_by_path(cls, search_path, last_seen_at = None, parent_node = None, search_by = 'name'):

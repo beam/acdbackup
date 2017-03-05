@@ -130,7 +130,7 @@ def clear_cache():
 def get_remote_chroot():
     if RemoteNode.get_root_node() == None: raise Exception("Missing root node on remote cache, please resync")
     CHROOT_NODE = RemoteNode.find_node_by_path(config.REMOTE_BACKUP_DESTINATION)
-    if CHROOT_NODE == None: raise Exception("Missing backup dir, please create on server")
+    if CHROOT_NODE == None: raise Exception("Missing backup dir, please create on server or resync remote nodes")
     return CHROOT_NODE
 
 # Create directory tree on server

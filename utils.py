@@ -154,7 +154,7 @@ def check_if_files_in_changed(node):
 		return False
 
 def upload_file_on_server(local_node, remote_parent):
-	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent).first()
+	remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(local_node.name, remote_parent.id).first()
 	local_file = os.path.join(config.BACKUP_DIR,local_node.get_node_path())
 	local_file_size = os.lstat(local_file).st_size
 	with thread_lock: progress_bar = tqdm(total=local_file_size, desc='Uploading file: ' + str(local_node.plain_name), unit='B', unit_scale=True, dynamic_ncols=True, mininterval=1)
@@ -195,7 +195,7 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 		t.daemon = True
 		t.start()
 
-	for node in Node.select().where(Node.last_seen_at == last_seen_at).where(Node.node_type == 'F'):#.offset(170000):
+	for node in Node.select().where(Node.last_seen_at == last_seen_at).where(Node.node_type == 'F'):#.offset(172850).limit(100):
 		if not node.md5:
 			log("File " + node.get_node_path('plain') + " without MD5 hash!",'error')
 			raise Exception("Something wrong")
@@ -208,72 +208,59 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 
 		if len(remote_nodes) == 0:
 			upload_queue.put((node, remote_parent, retry_count, progress_bar))
+			continue
 		else:
-			file_is_on_right_place = False
-			for remote_node in remote_nodes: # check if one of files is on right place
-				if remote_parent.id == remote_node.parent_id:
-					file_is_on_right_place = True
+			found_right_file = False
+			for remote_node in remote_nodes: # check if one of files is in right directory and have a same name
+				if remote_parent.id == remote_node.parent_id and remote_node.name == node.name:
+					found_right_file = True
 					selected_remote_node = remote_node
 					break
 
-			if not file_is_on_right_place:
-				for remote_node in remote_nodes: # check if is one of files is not on local file system (moved)
-					if not remote_node.is_chrooted(remote_chroot_node.id):
-						log("File: " + node.get_node_path('plain') + " is outside chroot " + remote_node.get_node_path('plain', remote_chroot_node))
-						continue # file is outside backup directory
-					remote_node_path = remote_node.get_node_path('name', remote_chroot_node)
-					if Node.find_node_by_path(remote_node_path, last_seen_at) == None:
-						log("moving file: " + remote_node.get_node_path('plain', remote_chroot_node) + " to " + remote_parent.get_node_path('plain'))
-						file_is_on_right_place = True
+			if not found_right_file:
+				for remote_node in remote_nodes: # check if one of files is in right directory (and maybe renamed)
+					remote_node_path = remote_node.get_node_path('name', remote_chroot_node.id)
+					if remote_parent.id == remote_node.parent_id and not Node.find_node_by_path(remote_node_path, last_seen_at):
+						found_right_file = True
 						selected_remote_node = remote_node
 						break
-					else:
-						log("File: " + node.get_node_path('plain') + " is on " + remote_node.get_node_path('plain', remote_chroot_node))
 
-			if file_is_on_right_place == False:
-				log("upload file: " + node.get_node_path('plain'))
+			if not found_right_file:
+				for remote_node in remote_nodes: # check if is one of files is not on local file system (moved)
+					if not remote_node.is_chrooted(remote_chroot_node.id):
+						# log("File " + node.get_node_path('plain') + " is outside chroot " + remote_node.get_node_path('plain', remote_chroot_node.id))
+						continue # file is outside backup directory
+					remote_node_path = remote_node.get_node_path('name', remote_chroot_node.id)
+					if Node.find_node_by_path(remote_node_path, last_seen_at) == None:
+						found_right_file = True
+						selected_remote_node = remote_node
+						remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(selected_remote_node.name, remote_parent.id).first()
+						if remote_nodes_already_exits: # can't move because there is already file with the same name and renaming is later
+							log("File " + selected_remote_node.plain_name + " already exists in " + remote_parent.get_node_path('plain', remote_chroot_node.id) + ". Temporary renaming.", 'debug')
+							selected_remote_node = RemoteNode.rename_file(selected_remote_node.id,str(last_seen_at) + "-" + selected_remote_node.md5, str(last_seen_at) + "-" + selected_remote_node.md5 )
+						selected_remote_node_path = selected_remote_node.get_node_path('plain', remote_chroot_node.id)
+						selected_remote_node = RemoteNode.move_file(selected_remote_node.id, remote_parent.id)
+						log("File " + selected_remote_node_path + " moved to " + remote_parent.get_node_path('plain',remote_chroot_node.id), 'debug')
+						break
+
+			if found_right_file == False:
+				upload_queue.put((node, remote_parent, retry_count, progress_bar))
+				continue
 			else:
-				if selected_remote_node.name != node.name: log("Renaming file: " + selected_remote_node.plain_name + " to " + node.plain_name)
+				if selected_remote_node.name != node.name:
+					log(selected_remote_node.id)
+					remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(node.name, remote_parent.id).first()
+					selected_remote_node_path = selected_remote_node.get_node_path('plain', remote_chroot_node.id)
+					if not remote_nodes_already_exits:
+						RemoteNode.rename_file(selected_remote_node.id, node.name, node.plain_name)
+						log("File " + selected_remote_node_path + " (" + selected_remote_node.id + ") renamed to " + node.plain_name + " (" + str(node.id) + ")", 'debug')
+					else:
+						log("File " + selected_remote_node_path + " (" + selected_remote_node.id + ") can't be renamed to " + node.plain_name + " (" + str(node.id) + ")" + ". File already exists!", 'error')
+
 				selected_remote_node.clear_my_relevant_cache()
 				remote_parent.clear_my_relevant_cache()
 
 			with thread_lock: progress_bar.update(node.size)
-			# log("Upload file " + node.get_node_path('plain'), 'debug')
-
-		# elif len(remote_nodes) == 1:
-			# if not remote_chroot_node.id in remote_nodes.first().get_node_path('id'):
-			# 	log("File is outside backup dir: " + remote_nodes.first().get_node_path('plain'))
-			# 	# handle as new file to upload
-			# 	continue
-			# # test jestli je v backup directory
-			# if remote_nodes.first().parent != remote_parent:
-			# 	if remote_nodes.first().name == node.name:
-			# 		log("File moved " + node.get_node_path('plain') + " to " + remote_nodes.first().get_node_path('plain', remote_chroot_node.id))
-			# 	else:
-			# 		log("File moved and renamed " + node.get_node_path('plain') + " to " + remote_nodes.first().get_node_path('plain', remote_chroot_node.id))
-			# elif remote_nodes.first().parent == remote_parent and remote_nodes.first().name != node.name:
-			# 	log("File renamed " + node.plain_name + " / " + remote_nodes.first().plain_name)
-
-		# if not node.parent:
-		# 	parent_node_path = ""
-		# 	r = RemoteNode.find_node_by_path(parent_node_path,None,remote_chroot_node)
-		# 	log("Parent missing! " + node.get_node_path() + ' = '+ r.get_node_path('plain'), 'error')
-
-		# if len(remote_nodes) > 1 and not node.md5 in known_md5:
-		# 	log(node.plain_name + " x " + str(len(remote_nodes)),'debug')
-		# 	known_md5.append(node.md5)
-		# 	for remote_node in remote_nodes:
-		# 		log(remote_node.get_node_path('plain'))
-		#
-		# if len(remote_nodes) == 0:
-		# 	if not node.parent:
-		# 		log("Parent missing! " + node.get_node_path() + ' = '+ node.get_node_path('plain'), 'error')
-		# 	# parent_node_id = RemoteNode.find_node_by_path(Node.get_node_path(),None,remote_chroot_node)
-			# if parent_node_id == None:
-			# 	log("Parent missing! " + node.get_node_path() + ' = '+ node.get_node_path('plain'), 'error')
-			# else:
-			# 	log(node.plain_name + " new file into " + parent_node_id)
-
 
 	upload_queue.join()
 	with thread_lock: progress_bar.close()
