@@ -3,3 +3,5 @@
 *.bz2
 __pycache__/
 config.py
+acdbackup.db*
+acdbackup.log
