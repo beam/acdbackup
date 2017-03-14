@@ -249,7 +249,7 @@ def move_and_upload_files(remote_chroot_node, last_seen_at, progress_bar):
 				continue
 			else:
 				if selected_remote_node.name != node.name:
-					log(selected_remote_node.id)
+					#log(selected_remote_node.id)
 					remote_nodes_already_exits = RemoteNode.get_file_by_name_and_parent(node.name, remote_parent.id).first()
 					selected_remote_node_path = selected_remote_node.get_node_path('plain', remote_chroot_node.id)
 					if not remote_nodes_already_exits:
