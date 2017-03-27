@@ -64,18 +64,40 @@ class RemoteNode(BaseNode):
 		return node
 
 	def rename_file(node_id, new_name, plain_file_name = None):
-		result = acd_client.rename_node(node_id, new_name)
-		node = RemoteNode.insert_node_into_cache(result, plain_file_name)
-		node.clear_my_relevant_cache()
-		return node
+		for attempt in range(10):
+			try:
+				result = acd_client.rename_node(node_id, new_name)
+				node = RemoteNode.insert_node_into_cache(result, plain_file_name)
+				node.clear_my_relevant_cache()
+				return node
+			except acd_RequestError as e:
+				if e.msg.find("Concurrent Access on same node") != -1 and e.status_code == 429:
+					for i in tqdm(range((attempt+1)*30),desc='Waiting for another try', unit='sec', dynamic_ncols=True):
+						time.sleep(1)
+				else:
+					tqdm.write(str(e))
+					return None
+		else:
+			return None
 
 	def move_file(node_id, new_parent_id):
-		node = RemoteNode.get(id = node_id)
-		node.clear_my_relevant_cache()
-		result = acd_client.move_node(node_id, new_parent_id)
-		node = RemoteNode.insert_node_into_cache(result, node.plain_name)
-		node.clear_my_relevant_cache()
-		return node
+		for attempt in range(10):
+			try:
+				node = RemoteNode.get(id = node_id)
+				node.clear_my_relevant_cache()
+				result = acd_client.move_node(node_id, new_parent_id)
+				node = RemoteNode.insert_node_into_cache(result, node.plain_name)
+				node.clear_my_relevant_cache()
+				return node
+			except acd_RequestError as e:
+				if e.msg.find("Concurrent Access on same node") != -1 and e.status_code == 429:
+					for i in tqdm(range((attempt+1)*30),desc='Waiting for another try', unit='sec', dynamic_ncols=True):
+						time.sleep(1)
+				else:
+					tqdm.write(str(e))
+					return None
+		else:
+			return None
 
 	## Local cache
 	def truncate_cache():
